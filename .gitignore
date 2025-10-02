@@ -1,0 +1,54 @@
+# Vagrant相关
+.vagrant/
+*.log
+
+# QEMU/KVM相关
+*.qcow2
+*.img
+*.raw
+
+# 临时文件
+*.tmp
+*.temp
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志文件
+*.log
+logs/
+
+# 备份文件
+*.bak
+*.backup
+
+# 密钥文件
+*.key
+*.pem
+*.crt
+
+# 数据库文件
+*.db
+*.sqlite
+
+# 压缩文件
+*.zip
+*.tar.gz
+*.tar.bz2
+
+# 虚拟环境
+venv/
+env/
+.env
+
+# 配置文件（包含敏感信息）
+config/secrets.yml
+config/database.yml

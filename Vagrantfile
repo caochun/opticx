@@ -24,7 +24,6 @@ Vagrant.configure("2") do |config|
     vb.nic_model_type = "virtio"
     vb.graphics_type = "none"
     vb.video_type = "none"
-    vb.channel :type => "unix", :target_name => "org.qemu.guest_agent.0", :target_type => "virtio", :name => "org.qemu.guest_agent.0"
   end
   
   # SLURM控制器节点
@@ -35,7 +34,6 @@ Vagrant.configure("2") do |config|
     slurmctld.vm.provider "libvirt" do |vb|
       vb.memory = 2048
       vb.cpus = 2
-      vb.name = "slurmctld"
     end
     
     # 端口转发
@@ -60,7 +58,6 @@ Vagrant.configure("2") do |config|
     compute1.vm.provider "libvirt" do |vb|
       vb.memory = 1024
       vb.cpus = 2
-      vb.name = "compute1"
     end
     
     # 端口转发
@@ -81,7 +78,6 @@ Vagrant.configure("2") do |config|
     compute2.vm.provider "libvirt" do |vb|
       vb.memory = 1024
       vb.cpus = 2
-      vb.name = "compute2"
     end
     
     # 端口转发
@@ -102,7 +98,6 @@ Vagrant.configure("2") do |config|
     login.vm.provider "libvirt" do |vb|
       vb.memory = 1024
       vb.cpus = 1
-      vb.name = "login"
     end
     
     # 端口转发

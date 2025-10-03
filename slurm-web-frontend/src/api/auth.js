@@ -3,7 +3,7 @@ import axios from 'axios'
 const API_BASE_URL = '/api'
 
 // 硬编码的JWT令牌（从集群获取）
-const HARDCODED_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTk0NzY3MjcsImlhdCI6MTc1OTQ3NDkyNywic3VuIjoidmFncmFudCJ9.ult5uAtZgLKX3ugzMeWTCnFeH-jfTypic_NHaA4hxpE'
+const HARDCODED_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTk0NzgxNzUsImlhdCI6MTc1OTQ3NjM3NSwic3VuIjoidmFncmFudCJ9.6SE-azfq51IF8IugMeEnHDQhVB1KPA_oJ_ug4u_m2M0'
 
 // 创建axios实例
 const api = axios.create({

@@ -73,3 +73,36 @@ logs/
 .fuse_hidden*
 .directory
 .Trash-*
+
+# Vue3前端工程相关
+slurm-web-frontend/node_modules/
+slurm-web-frontend/dist/
+slurm-web-frontend/.vite/
+slurm-web-frontend/.env
+slurm-web-frontend/.env.local
+slurm-web-frontend/.env.*.local
+slurm-web-frontend/coverage/
+slurm-web-frontend/.nyc_output/
+slurm-web-frontend/.cache/
+slurm-web-frontend/.temp/
+slurm-web-frontend/.DS_Store
+slurm-web-frontend/Thumbs.db
+
+# Node.js相关
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 前端构建输出
+dist/
+build/
+out/
+
+# 前端开发工具
+.vite/
+.vuepress/dist/
+.vuepress/cache/
+.vuepress/temp/

@@ -41,6 +41,16 @@ apt-get install -y \
     libhwloc-dev \
     libnuma-dev
 
+# 安装MPI环境
+echo "=== 安装MPI环境 ==="
+if [ -f "/vagrant/scripts/setup-mpi.sh" ]; then
+    chmod +x /vagrant/scripts/setup-mpi.sh
+    /vagrant/scripts/setup-mpi.sh
+else
+    echo "警告: 未找到MPI安装脚本，手动安装MPI..."
+    apt-get install -y mpich libmpich-dev
+fi
+
 # 配置Munge
 echo "=== 配置Munge认证 ==="
 systemctl enable munge

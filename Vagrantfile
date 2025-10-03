@@ -3,12 +3,15 @@
 
 # SLURM集群Vagrant配置 - 使用QEMU/KVM
 Vagrant.configure("2") do |config|
-  # 通用配置
-  config.vm.box = "generic/ubuntu2204"
-  config.vm.box_version = ">= 4.3.0"
+  # 通用配置 - Ubuntu 24.04
+  config.vm.box = "bento/ubuntu-24.04"
+  config.vm.box_version = ">= 1.0.0"
   
   # 禁用自动更新
   config.vm.box_check_update = false
+  
+  # 禁用代理，直接下载
+  config.vm.box_download_insecure = true
   
   # 网络配置
   config.vm.network "private_network", type: "dhcp"

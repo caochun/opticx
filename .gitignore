@@ -1,54 +1,75 @@
-# Vagrant相关
+# Vagrant相关文件
 .vagrant/
 *.log
 
-# QEMU/KVM相关
+# 虚拟机相关
+*.vmdk
+*.vdi
+*.vhd
 *.qcow2
-*.img
-*.raw
 
 # 临时文件
 *.tmp
 *.temp
+*.swp
+*.swo
 *~
 
 # 系统文件
 .DS_Store
 Thumbs.db
 
-# 编辑器文件
-.vscode/
-.idea/
-*.swp
-*.swo
+# 备份文件
+*.bak
+*.backup
+*.tar.gz
+*.zip
+
+# 整个shared目录（包含所有运行时生成的文件）
+# 这个目录包含：
+# - 作业输出文件 (*.out, *.err)
+# - 运行时生成的脚本
+# - 认证密钥文件
+# - 临时测试文件
+shared/
+
+# 编译输出
+*.o
+*.so
+*.a
+*.exe
+
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
 
 # 日志文件
 *.log
 logs/
 
-# 备份文件
-*.bak
-*.backup
+# 配置文件备份
+*.conf.bak
+*.conf.orig
 
-# 密钥文件
-*.key
-*.pem
-*.crt
+# 用户特定文件
+.vscode/
+.idea/
+*.sublime-*
 
-# 数据库文件
-*.db
-*.sqlite
+# 大型数据文件
+*.dat
+*.data
+*.bin
+*.raw
 
-# 压缩文件
-*.zip
-*.tar.gz
-*.tar.bz2
+# 作业脚本的临时版本
+*_temp.sh
+*_backup.sh
 
-# 虚拟环境
-venv/
-env/
-.env
-
-# 配置文件（包含敏感信息）
-config/secrets.yml
-config/database.yml
+# 系统生成的文件
+.fuse_hidden*
+.directory
+.Trash-*

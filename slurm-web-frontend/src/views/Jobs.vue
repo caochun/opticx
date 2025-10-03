@@ -64,27 +64,107 @@
     </el-card>
 
     <!-- 作业详情对话框 -->
-    <el-dialog v-model="jobDetailsVisible" title="作业详情" width="60%">
+    <el-dialog v-model="jobDetailsVisible" title="作业详情" width="70%">
       <div v-if="selectedJob">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="作业ID">{{ selectedJob.job_id }}</el-descriptions-item>
-          <el-descriptions-item label="作业名">{{ selectedJob.name }}</el-descriptions-item>
-          <el-descriptions-item label="用户">{{ selectedJob.user }}</el-descriptions-item>
-          <el-descriptions-item label="分区">{{ selectedJob.partition }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="getJobStateType(selectedJob.state)">
-              {{ selectedJob.state }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="节点数">{{ selectedJob.nodes }}</el-descriptions-item>
-          <el-descriptions-item label="CPU数">{{ selectedJob.cpus }}</el-descriptions-item>
-          <el-descriptions-item label="内存">{{ selectedJob.memory || 'N/A' }}</el-descriptions-item>
-          <el-descriptions-item label="时间限制">{{ selectedJob.time_limit || 'N/A' }}</el-descriptions-item>
-          <el-descriptions-item label="提交时间">{{ selectedJob.submit_time }}</el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{ selectedJob.start_time || 'N/A' }}</el-descriptions-item>
-          <el-descriptions-item label="结束时间">{{ selectedJob.end_time || 'N/A' }}</el-descriptions-item>
-          <el-descriptions-item label="工作目录" :span="2">{{ selectedJob.work_dir || 'N/A' }}</el-descriptions-item>
-        </el-descriptions>
+        <el-tabs v-model="activeTab">
+          <!-- 基本信息 -->
+          <el-tab-pane label="基本信息" name="basic">
+            <el-descriptions :column="2" border>
+              <el-descriptions-item label="作业ID">{{ selectedJob.job_id }}</el-descriptions-item>
+              <el-descriptions-item label="作业名">{{ selectedJob.name }}</el-descriptions-item>
+              <el-descriptions-item label="用户">{{ selectedJob.user }}</el-descriptions-item>
+              <el-descriptions-item label="分区">{{ selectedJob.partition }}</el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <el-tag :type="getJobStateType(selectedJob.state)">
+                  {{ selectedJob.state }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="优先级">{{ selectedJob.priority || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="节点数">{{ selectedJob.nodes }}</el-descriptions-item>
+              <el-descriptions-item label="CPU数">{{ selectedJob.cpus }}</el-descriptions-item>
+              <el-descriptions-item label="内存">{{ selectedJob.memory || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="时间限制">{{ selectedJob.time_limit || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="提交时间">{{ selectedJob.submit_time }}</el-descriptions-item>
+              <el-descriptions-item label="开始时间">{{ selectedJob.start_time || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="结束时间">{{ selectedJob.end_time || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="运行时间">{{ selectedJob.run_time || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="工作目录" :span="2">{{ selectedJob.work_dir || 'N/A' }}</el-descriptions-item>
+            </el-descriptions>
+          </el-tab-pane>
+
+          <!-- 状态详情 -->
+          <el-tab-pane label="状态详情" name="status">
+            <el-descriptions :column="1" border>
+              <el-descriptions-item label="当前状态">
+                <el-tag :type="getJobStateType(selectedJob.state)" size="large">
+                  {{ selectedJob.state }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="状态原因" v-if="selectedJob.reason">
+                <el-alert 
+                  :title="selectedJob.reason" 
+                  :type="getReasonAlertType(selectedJob.state)"
+                  show-icon
+                  :closable="false"
+                />
+              </el-descriptions-item>
+              <el-descriptions-item label="退出代码" v-if="selectedJob.exit_code !== undefined">
+                <el-tag :type="selectedJob.exit_code === 0 ? 'success' : 'danger'">
+                  {{ selectedJob.exit_code }}
+                </el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="失败原因" v-if="selectedJob.fail_reason">
+                <el-alert 
+                  :title="selectedJob.fail_reason" 
+                  type="error"
+                  show-icon
+                  :closable="false"
+                />
+              </el-descriptions-item>
+              <el-descriptions-item label="依赖关系" v-if="selectedJob.dependency">
+                {{ selectedJob.dependency }}
+              </el-descriptions-item>
+              <el-descriptions-item label="作业数组" v-if="selectedJob.array_job_id">
+                数组作业ID: {{ selectedJob.array_job_id }}, 任务ID: {{ selectedJob.array_task_id }}
+              </el-descriptions-item>
+            </el-descriptions>
+          </el-tab-pane>
+
+          <!-- 资源使用 -->
+          <el-tab-pane label="资源使用" name="resources">
+            <el-descriptions :column="2" border>
+              <el-descriptions-item label="分配的节点">{{ selectedJob.allocated_nodes || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="分配的CPU">{{ selectedJob.allocated_cpus || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="分配的内存">{{ selectedJob.allocated_memory || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="分配的GPU">{{ selectedJob.allocated_gpus || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="最小内存">{{ selectedJob.min_memory || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="最大内存">{{ selectedJob.max_memory || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="CPU时间">{{ selectedJob.cpu_time || 'N/A' }}</el-descriptions-item>
+              <el-descriptions-item label="内存使用">{{ selectedJob.memory_usage || 'N/A' }}</el-descriptions-item>
+            </el-descriptions>
+          </el-tab-pane>
+
+          <!-- 输出文件 -->
+          <el-tab-pane label="输出文件" name="output">
+            <el-descriptions :column="1" border>
+              <el-descriptions-item label="标准输出文件">
+                <el-text type="primary">{{ selectedJob.output_file || 'N/A' }}</el-text>
+              </el-descriptions-item>
+              <el-descriptions-item label="错误输出文件">
+                <el-text type="danger">{{ selectedJob.error_file || 'N/A' }}</el-text>
+              </el-descriptions-item>
+              <el-descriptions-item label="作业脚本" v-if="selectedJob.script">
+                <el-input 
+                  v-model="selectedJob.script" 
+                  type="textarea" 
+                  :rows="10" 
+                  readonly
+                  placeholder="无作业脚本"
+                />
+              </el-descriptions-item>
+            </el-descriptions>
+          </el-tab-pane>
+        </el-tabs>
       </div>
     </el-dialog>
   </div>
@@ -100,6 +180,7 @@ const loading = ref(false)
 const jobs = ref([])
 const jobDetailsVisible = ref(false)
 const selectedJob = ref(null)
+const activeTab = ref('basic')
 
 const refreshJobs = async () => {
   loading.value = true
@@ -119,7 +200,27 @@ const refreshJobs = async () => {
         submit_time: new Date(job.submit_time * 1000).toLocaleString(),
         start_time: job.start_time ? new Date(job.start_time * 1000).toLocaleString() : null,
         end_time: job.end_time ? new Date(job.end_time * 1000).toLocaleString() : null,
-        work_dir: job.work_dir
+        work_dir: job.work_dir,
+        // 新增字段
+        priority: job.priority,
+        reason: job.reason,
+        exit_code: job.exit_code,
+        fail_reason: job.fail_reason,
+        dependency: job.dependency,
+        array_job_id: job.array_job_id,
+        array_task_id: job.array_task_id,
+        allocated_nodes: job.allocated_nodes,
+        allocated_cpus: job.allocated_cpus,
+        allocated_memory: job.allocated_memory,
+        allocated_gpus: job.allocated_gpus,
+        min_memory: job.min_memory,
+        max_memory: job.max_memory,
+        cpu_time: job.cpu_time,
+        memory_usage: job.memory_usage,
+        output_file: job.output_file,
+        error_file: job.error_file,
+        script: job.script,
+        run_time: job.run_time
       }))
     }
   } catch (error) {
@@ -131,6 +232,7 @@ const refreshJobs = async () => {
 
 const viewJobDetails = (job) => {
   selectedJob.value = job
+  activeTab.value = 'basic' // 重置到基本信息tab
   jobDetailsVisible.value = true
 }
 
@@ -158,9 +260,26 @@ const getJobStateType = (state) => {
     'PENDING': 'warning',
     'COMPLETED': 'info',
     'FAILED': 'danger',
-    'CANCELLED': 'danger'
+    'CANCELLED': 'danger',
+    'TIMEOUT': 'danger',
+    'NODE_FAIL': 'danger',
+    'PREEMPTED': 'warning'
   }
   return stateMap[state] || 'info'
+}
+
+const getReasonAlertType = (state) => {
+  const alertMap = {
+    'RUNNING': 'success',
+    'PENDING': 'info',
+    'COMPLETED': 'success',
+    'FAILED': 'error',
+    'CANCELLED': 'warning',
+    'TIMEOUT': 'error',
+    'NODE_FAIL': 'error',
+    'PREEMPTED': 'warning'
+  }
+  return alertMap[state] || 'info'
 }
 
 onMounted(() => {

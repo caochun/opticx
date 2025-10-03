@@ -26,6 +26,10 @@ echo "=== 安装SLURM软件包 ==="
 apt-get install -y \
     slurm-wlm \
     slurm-wlm-torque \
+    slurmrestd \
+    slurmdbd \
+    slurm-wlm-mysql-plugin \
+    mysql-server \
     munge \
     nfs-kernel-server \
     nfs-common \
@@ -37,7 +41,8 @@ apt-get install -y \
     wget \
     git \
     build-essential \
-    libmunge-dev
+    libmunge-dev \
+    jq
 
 # 安装PMIx和MPI相关包
 echo "=== 安装PMIx和MPI支持包 ==="
@@ -91,8 +96,8 @@ ControlMachine=slurmctld
 ControlAddr=192.168.56.10
 
 # 计算节点配置
-NodeName=compute1 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
-NodeName=compute2 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
+NodeName=compute1 NodeAddr=192.168.56.11 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
+NodeName=compute2 NodeAddr=192.168.56.12 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
 
 # 分区配置
 PartitionName=debug Nodes=compute1,compute2 Default=YES MaxTime=INFINITE State=UP
@@ -125,17 +130,19 @@ MaxArraySize=1000
 SlurmctldPort=6817
 SlurmdPort=6818
 
+# 会计存储配置
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost=slurmctld
+AccountingStoragePort=6819
+AccountingStorageUser=slurm
+
+# JWT认证配置
+AuthAltTypes=auth/jwt
+AuthAltParameters=jwt_key=/etc/slurm/jwt_hs256.key
+
 # 其他配置
 ProctrackType=proctrack/linuxproc
 TaskPlugin=task/affinity
-EOF
-
-# 创建Cgroup配置
-cat > /etc/slurm/cgroup.conf << 'EOF'
-# Cgroup配置文件
-CgroupMountpoint=/sys/fs/cgroup
-ConstrainCores=yes
-ConstrainRAMSpace=yes
 EOF
 
 # 设置权限
@@ -143,9 +150,153 @@ chown slurm:slurm /var/spool/slurmctld
 chown slurm:slurm /var/spool/slurmd
 chown slurm:slurm /var/log/slurm
 
+# 配置MySQL数据库
+echo "=== 配置MySQL数据库 ==="
+systemctl start mysql
+systemctl enable mysql
+
+# 创建SLURM数据库和用户
+mysql -e "CREATE DATABASE IF NOT EXISTS slurm_acct_db;"
+mysql -e "CREATE USER IF NOT EXISTS 'slurm'@'localhost' IDENTIFIED BY 'slurm123';"
+mysql -e "GRANT ALL PRIVILEGES ON slurm_acct_db.* TO 'slurm'@'localhost';"
+mysql -e "FLUSH PRIVILEGES;"
+
+# 创建JWT密钥
+echo "=== 创建JWT密钥 ==="
+openssl rand -base64 32 > /etc/slurm/jwt_hs256.key
+chown slurm:slurm /etc/slurm/jwt_hs256.key
+chmod 600 /etc/slurm/jwt_hs256.key
+
+# 配置slurmdbd
+echo "=== 配置slurmdbd ==="
+cat > /etc/slurm/slurmdbd.conf << 'EOF'
+# SLURM Database Daemon配置文件
+# 基于官方文档: https://slurm.schedmd.com/slurmdbd.conf.html
+
+# 认证配置
+AuthType=auth/munge
+AuthInfo=/var/run/munge/munge.socket.2
+
+# 数据库配置
+StorageType=accounting_storage/mysql
+StorageHost=localhost
+StorageLoc=slurm_acct_db
+StorageUser=slurm
+StoragePass=slurm123
+StoragePort=3306
+
+# 日志配置
+LogFile=/var/log/slurm/slurmdbd.log
+PidFile=/var/run/slurmdbd.pid
+
+# 调试级别
+DebugLevel=info
+
+# 用户配置
+SlurmUser=slurm
+
+# 数据保留策略
+PurgeEventAfter=1month
+PurgeJobAfter=12month
+PurgeResvAfter=1month
+PurgeStepAfter=1month
+PurgeSuspendAfter=1month
+PurgeTXNAfter=12month
+PurgeUsageAfter=24month
+
+# 归档配置
+ArchiveEvents=yes
+ArchiveJobs=yes
+ArchiveResvs=yes
+ArchiveSteps=no
+ArchiveSuspend=no
+ArchiveTXN=no
+ArchiveUsage=no
+
+# 通信参数
+CommunicationParameters=NoInAddrAny
+
+# 添加DbdHost参数
+DbdHost=slurmctld
+
+# JWT认证配置
+AuthAltTypes=auth/jwt
+AuthAltParameters=jwt_key=/etc/slurm/jwt_hs256.key
+EOF
+
+# 设置slurmdbd配置文件权限
+chown slurm:slurm /etc/slurm/slurmdbd.conf
+chmod 600 /etc/slurm/slurmdbd.conf
+
+# 创建日志目录
+mkdir -p /var/log/slurm
+chown slurm:slurm /var/log/slurm
+
+# 启动slurmdbd服务
+systemctl enable slurmdbd
+systemctl start slurmdbd
+
+# 等待slurmdbd启动完成
+echo "=== 等待slurmdbd启动完成 ==="
+for i in {1..30}; do
+    if systemctl is-active --quiet slurmdbd; then
+        echo "slurmdbd服务已启动"
+        break
+    fi
+    echo "等待slurmdbd启动... ($i/30)"
+    sleep 2
+done
+
 # 启动SLURM控制器
 systemctl enable slurmctld
 systemctl start slurmctld
+
+# 等待slurmctld启动完成
+echo "=== 等待slurmctld启动完成 ==="
+for i in {1..30}; do
+    if systemctl is-active --quiet slurmctld; then
+        echo "slurmctld服务已启动"
+        break
+    fi
+    echo "等待slurmctld启动... ($i/30)"
+    sleep 2
+done
+
+# 配置slurmrestd
+echo "=== 配置slurmrestd REST API ==="
+mkdir -p /etc/slurm/restd
+mkdir -p /var/log/slurm/restd
+
+# 配置slurmrestd systemd服务
+echo "=== 配置slurmrestd systemd服务 ==="
+mkdir -p /etc/systemd/system/slurmrestd.service.d
+cat > /etc/systemd/system/slurmrestd.service.d/override.conf << 'EOF'
+[Service]
+User=slurm
+Group=slurm
+Environment=SLURMRESTD_OPTIONS="-s openapi/v0.0.39 -a jwt"
+ExecStart=
+ExecStart=/usr/sbin/slurmrestd -s openapi/v0.0.39 -a jwt 0.0.0.0:6820
+EOF
+
+# 设置权限
+chown slurm:slurm /var/log/slurm/restd
+
+# 重新加载systemd并启动slurmrestd服务
+systemctl daemon-reload
+systemctl enable slurmrestd
+systemctl start slurmrestd
+
+# 等待slurmrestd启动完成
+echo "=== 等待slurmrestd启动完成 ==="
+for i in {1..30}; do
+    if systemctl is-active --quiet slurmrestd; then
+        echo "slurmrestd服务已启动"
+        break
+    fi
+    echo "等待slurmrestd启动... ($i/30)"
+    sleep 2
+done
 
 # 配置NFS共享
 echo "=== 配置NFS共享 ==="
@@ -159,7 +310,14 @@ fi
 
 systemctl enable nfs-kernel-server
 systemctl start nfs-kernel-server
-exportfs -a
+
+# 等待NFS服务启动
+sleep 3
+
+# 导出NFS共享目录
+echo "=== 导出NFS共享目录 ==="
+sudo exportfs -a
+sudo exportfs -v
 
 # 配置SSH
 echo "=== 配置SSH ==="
@@ -174,166 +332,14 @@ mkdir -p /shared/jobs
 echo "=== 等待NFS服务完全启动 ==="
 sleep 3
 
-# 创建测试作业脚本
-cat > /shared/scripts/test_job.sh << 'EOF'
-#!/bin/bash
-#SBATCH --job-name=test_job
-#SBATCH --partition=debug
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --time=00:05:00
-#SBATCH --output=/shared/jobs/test_job_%j.out
-#SBATCH --error=/shared/jobs/test_job_%j.err
+# 复制共享脚本（如果存在）
+if [ -d "/vagrant/shared" ]; then
+    echo "=== 复制共享脚本 ==="
+    cp -r /vagrant/shared/* /shared/scripts/ 2>/dev/null || true
+    chmod +x /shared/scripts/*.sh 2>/dev/null || true
+    echo "共享脚本已复制到 /shared/scripts/"
+else
+    echo "警告: 未找到共享脚本目录"
+fi
 
-echo "=========================================="
-echo "SLURM作业开始执行 (QEMU/KVM)"
-echo "=========================================="
-echo "作业ID: $SLURM_JOB_ID"
-echo "作业名称: $SLURM_JOB_NAME"
-echo "分区: $SLURM_JOB_PARTITION"
-echo "节点列表: $SLURM_NODELIST"
-echo "主机名: $(hostname)"
-echo "当前时间: $(date)"
-echo "用户: $(whoami)"
-echo "工作目录: $(pwd)"
-echo "=========================================="
-
-echo "开始计算任务..."
-for i in {1..5}; do
-    echo "计算步骤 $i/5"
-    sleep 1
-done
-
-echo "=========================================="
-echo "计算完成！"
-echo "结束时间: $(date)"
-echo "=========================================="
-EOF
-
-chmod +x /shared/scripts/test_job.sh
-
-# 创建并行作业脚本
-cat > /shared/scripts/parallel_job.sh << 'EOF'
-#!/bin/bash
-#SBATCH --job-name=parallel_job
-#SBATCH --partition=debug
-#SBATCH --nodes=2
-#SBATCH --ntasks=4
-#SBATCH --cpus-per-task=1
-#SBATCH --time=00:10:00
-#SBATCH --output=/shared/jobs/parallel_job_%j.out
-#SBATCH --error=/shared/jobs/parallel_job_%j.err
-
-echo "并行作业开始时间: $(date)"
-echo "作业ID: $SLURM_JOB_ID"
-echo "节点列表: $SLURM_NODELIST"
-echo "任务数: $SLURM_NTASKS"
-echo "每个任务的CPU数: $SLURM_CPUS_PER_TASK"
-
-# 并行计算任务
-srun -n $SLURM_NTASKS bash -c "
-    echo '任务 \$SLURM_PROCID 在节点 \$(hostname) 上运行'
-    echo '开始计算...'
-    for i in {1..5}; do
-        echo '任务 \$SLURM_PROCID - 步骤 \$i'
-        sleep 2
-    done
-    echo '任务 \$SLURM_PROCID 完成'
-"
-
-echo "并行作业完成时间: $(date)"
-EOF
-
-chmod +x /shared/scripts/parallel_job.sh
-
-# 创建集群管理脚本
-cat > /shared/scripts/cluster_info.sh << 'EOF'
-#!/bin/bash
-echo "=== SLURM集群信息 (QEMU/KVM) ==="
-echo "控制器节点: $(hostname)"
-echo "集群状态:"
-sinfo
-echo ""
-echo "节点状态:"
-scontrol show nodes
-echo ""
-echo "分区状态:"
-scontrol show partition
-echo ""
-echo "作业队列:"
-squeue
-EOF
-
-chmod +x /shared/scripts/cluster_info.sh
-
-# 创建作业管理脚本
-cat > /shared/scripts/job_manager.sh << 'EOF'
-#!/bin/bash
-# 作业管理脚本
-
-case "$1" in
-    "submit")
-        if [ -z "$2" ]; then
-            echo "用法: $0 submit <作业脚本>"
-            exit 1
-        fi
-        sbatch "$2"
-        ;;
-    "status")
-        echo "=== 作业队列状态 ==="
-        squeue
-        ;;
-    "info")
-        echo "=== 集群信息 ==="
-        sinfo
-        ;;
-    "output")
-        if [ -z "$2" ]; then
-            echo "用法: $0 output <作业ID>"
-            exit 1
-        fi
-        echo "=== 作业 $2 输出 ==="
-        cat /shared/jobs/test_job_${2}.out
-        ;;
-    "error")
-        if [ -z "$2" ]; then
-            echo "用法: $0 error <作业ID>"
-            exit 1
-        fi
-        echo "=== 作业 $2 错误输出 ==="
-        cat /shared/jobs/test_job_${2}.err
-        ;;
-    "cancel")
-        if [ -z "$2" ]; then
-            echo "用法: $0 cancel <作业ID>"
-            exit 1
-        fi
-        scancel "$2"
-        ;;
-    "help"|*)
-        echo "SLURM作业管理工具"
-        echo ""
-        echo "用法: $0 <命令> [参数]"
-        echo ""
-        echo "命令:"
-        echo "  submit <脚本>    - 提交作业"
-        echo "  status           - 查看作业队列"
-        echo "  info             - 查看集群信息"
-        echo "  output <作业ID>  - 查看作业输出"
-        echo "  error <作业ID>   - 查看作业错误"
-        echo "  cancel <作业ID>  - 取消作业"
-        echo "  help             - 显示帮助"
-        ;;
-esac
-EOF
-
-chmod +x /shared/scripts/job_manager.sh
-
-echo "=== SLURM控制器节点配置完成 (QEMU/KVM) ==="
-echo "控制器地址: 192.168.56.10"
-echo "SSH端口: 2210"
-echo "共享目录: /shared"
-echo "测试脚本: /shared/scripts/test_job.sh"
-echo "并行脚本: /shared/scripts/parallel_job.sh"
-echo "管理脚本: /shared/scripts/job_manager.sh"
+echo "=== SLURM控制器节点配置完成 ==="

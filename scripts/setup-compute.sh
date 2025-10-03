@@ -46,6 +46,28 @@ echo "=== 配置Munge认证 ==="
 systemctl enable munge
 systemctl start munge
 
+# 等待NFS服务就绪
+echo "=== 等待NFS服务就绪 ==="
+for i in {1..30}; do
+    if ping -c 1 192.168.56.10 >/dev/null 2>&1; then
+        echo "控制器节点网络可达"
+        break
+    fi
+    echo "等待控制器节点启动... ($i/30)"
+    sleep 2
+done
+
+# 等待共享目录可用
+echo "=== 等待共享目录可用 ==="
+for i in {1..20}; do
+    if [ -f /shared/munge.key ]; then
+        echo "共享目录已就绪"
+        break
+    fi
+    echo "等待共享目录... ($i/20)"
+    sleep 2
+done
+
 # 从共享目录复制Munge密钥
 echo "=== 复制Munge密钥 ==="
 if [ -f /shared/munge.key ]; then
@@ -54,7 +76,19 @@ if [ -f /shared/munge.key ]; then
     chmod 600 /etc/munge/munge.key
     echo "Munge密钥复制成功"
 else
-    echo "警告: 未找到Munge密钥文件，请确保控制器节点已配置"
+    echo "错误: 未找到Munge密钥文件，请确保控制器节点已配置"
+    echo "尝试手动挂载NFS..."
+    mkdir -p /shared
+    mount -t nfs 192.168.56.10:/shared /shared
+    if [ -f /shared/munge.key ]; then
+        cp /shared/munge.key /etc/munge/munge.key
+        chown munge:munge /etc/munge/munge.key
+        chmod 600 /etc/munge/munge.key
+        echo "Munge密钥复制成功（手动挂载）"
+    else
+        echo "错误: 手动挂载后仍未找到Munge密钥文件"
+        exit 1
+    fi
 fi
 
 # 重启Munge服务
@@ -88,8 +122,8 @@ ControlMachine=slurmctld
 ControlAddr=192.168.56.10
 
 # 计算节点配置
-NodeName=compute1 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
-NodeName=compute2 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
+NodeName=compute1 NodeAddr=192.168.56.11 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
+NodeName=compute2 NodeAddr=192.168.56.12 CPUs=2 Sockets=2 CoresPerSocket=1 ThreadsPerCore=1 State=UNKNOWN
 
 # 分区配置
 PartitionName=debug Nodes=compute1,compute2 Default=YES MaxTime=INFINITE State=UP
@@ -121,6 +155,12 @@ MaxArraySize=1000
 # 网络配置
 SlurmctldPort=6817
 SlurmdPort=6818
+
+# 会计存储配置
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost=slurmctld
+AccountingStoragePort=6819
+AccountingStorageUser=slurm
 
 # 其他配置
 ProctrackType=proctrack/linuxproc
@@ -154,7 +194,4 @@ echo "=== 配置SSH ==="
 systemctl enable ssh
 systemctl start ssh
 
-echo "=== SLURM计算节点配置完成 (QEMU/KVM) ==="
-echo "节点地址: $(hostname)"
-echo "SSH端口: 22"
-echo "共享目录: /shared"
+echo "=== SLURM计算节点配置完成 ==="

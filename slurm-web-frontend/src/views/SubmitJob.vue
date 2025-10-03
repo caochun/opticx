@@ -142,11 +142,6 @@ const rules = {
 }
 
 const submitJob = async () => {
-  if (!authStore.token) {
-    ElMessage.error('请先获取认证令牌')
-    return
-  }
-
   try {
     await jobFormRef.value.validate()
   } catch (error) {
@@ -166,7 +161,7 @@ const submitJob = async () => {
       script: jobForm.script
     }
 
-    const response = await submitJobAPI(authStore.token, jobData)
+    const response = await submitJobAPI(jobData)
     
     submitResult.value = {
       success: true,

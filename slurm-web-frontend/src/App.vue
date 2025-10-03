@@ -63,7 +63,8 @@ const refreshToken = async () => {
 }
 
 onMounted(() => {
-  isAuthenticated.value = !!authStore.token
+  // 自动获取token
+  refreshToken()
 })
 </script>
 

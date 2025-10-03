@@ -126,16 +126,11 @@ const clusterStats = ref({
 const recentJobs = ref([])
 
 const refreshClusterStatus = async () => {
-  if (!authStore.token) {
-    ElMessage.error('请先获取认证令牌')
-    return
-  }
-
   loading.value = true
   try {
     const [diagResponse, jobsResponse] = await Promise.all([
-      getClusterDiag(authStore.token),
-      getJobs(authStore.token)
+      getClusterDiag(),
+      getJobs()
     ])
 
     clusterInfo.value = diagResponse.data
@@ -182,9 +177,7 @@ const getJobStateType = (state) => {
 }
 
 onMounted(() => {
-  if (authStore.token) {
-    refreshClusterStatus()
-  }
+  refreshClusterStatus()
 })
 </script>
 

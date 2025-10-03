@@ -19,9 +19,9 @@ export const useAuthStore = defineStore('auth', () => {
   const getTokenFromAPI = async () => {
     try {
       const response = await getToken()
-      if (response.data && response.data.SLURM_JWT) {
-        setToken(response.data.SLURM_JWT)
-        return response.data.SLURM_JWT
+      if (response.data && response.data.token) {
+        setToken(response.data.token)
+        return response.data.token
       }
       throw new Error('无法获取令牌')
     } catch (error) {

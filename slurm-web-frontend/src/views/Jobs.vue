@@ -102,14 +102,9 @@ const jobDetailsVisible = ref(false)
 const selectedJob = ref(null)
 
 const refreshJobs = async () => {
-  if (!authStore.token) {
-    ElMessage.error('请先获取认证令牌')
-    return
-  }
-
   loading.value = true
   try {
-    const response = await getJobs(authStore.token)
+    const response = await getJobs()
     if (response.data.jobs && Array.isArray(response.data.jobs)) {
       jobs.value = response.data.jobs.map(job => ({
         job_id: job.job_id,
@@ -147,7 +142,7 @@ const cancelJob = async (jobId) => {
       type: 'warning'
     })
     
-    await cancelJobAPI(authStore.token, jobId)
+    await cancelJobAPI(jobId)
     ElMessage.success('作业已取消')
     refreshJobs()
   } catch (error) {
@@ -169,9 +164,7 @@ const getJobStateType = (state) => {
 }
 
 onMounted(() => {
-  if (authStore.token) {
-    refreshJobs()
-  }
+  refreshJobs()
 })
 </script>
 

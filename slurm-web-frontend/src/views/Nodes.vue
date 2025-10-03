@@ -81,14 +81,9 @@ const nodeDetailsVisible = ref(false)
 const selectedNode = ref(null)
 
 const refreshNodes = async () => {
-  if (!authStore.token) {
-    ElMessage.error('请先获取认证令牌')
-    return
-  }
-
   loading.value = true
   try {
-    const response = await getNodes(authStore.token)
+    const response = await getNodes()
     if (response.data.nodes && Array.isArray(response.data.nodes)) {
       nodes.value = response.data.nodes.map(node => ({
         name: node.name,
@@ -134,9 +129,7 @@ const getNodeStateType = (state) => {
 }
 
 onMounted(() => {
-  if (authStore.token) {
-    refreshNodes()
-  }
+  refreshNodes()
 })
 </script>
 
